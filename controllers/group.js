@@ -3,23 +3,22 @@ const Category = require("../models/model").Category;
 
 exports.getAllCategories = async (req, res) => {
   try {
-    const categories = await Category.findAll();
-    res.json(categories);
+    const group = await Category.findAll();
+    res.json(group)
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({error: err.message})
   }
 };
 
 exports.getSingleCategory = async (req, res) => {
   try {
     const category = await Category.findByPk(req.params.id, {
-      include: [
-        {
-          association: "books", 
-          attributes: ["id", "name", "description", "pdf", "image"],
-        },
-      ],
+      // include: [
+      //   {
+      //     association: "Teacher", 
+      //     attributes: ["id", "name"],
+      //   },
+      // ],
     });
 
     if (!category) return res.status(404).json({ error: "Category not found" });

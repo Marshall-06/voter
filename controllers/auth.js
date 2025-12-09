@@ -70,18 +70,18 @@ exports.registerStudent = async (req, res) => {
       return res.status(400).json({ error: "Student ID is required for students" });
     }
 
-    // 2. Check email already exists
-    const existingUser = await User.findOne({ where: { email } });
-    if (existingUser) {
-      return res
-        .status(400)
-        .json({ error: "Sizin nomeriniz bilen on hasap acylypdyr" });
+    // 2. Check if studentId already exists (for students)
+    if (role === "student") {
+      const existingUser = await User.findOne({ where: { studentId } });
+      if (existingUser) {
+        return res.status(400).json({ error: "Bu ID bilen ulanyjy on bar" });
+      }
     }
 
     // 3. Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 4. Create user (null studentId for non-students)
+    // 4. Create user
     const newUser = await User.create({
       studentId: role === "student" ? studentId : null,
       name,
@@ -97,13 +97,14 @@ exports.registerStudent = async (req, res) => {
       { expiresIn: "24h" }
     );
 
-    res.status(201).json({ token });
+    return res.status(201).json({ token });
 
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error", message: err.message });
   }
 };
+
 
 
 // ✅ User login

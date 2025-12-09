@@ -1,6 +1,8 @@
 const express = require('express')
 require('dotenv').config();
 PORT = process.env.PORT
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./swagger/swagger");
 
 
 const app = express()
@@ -11,6 +13,9 @@ const categoryRouter = require('./routes/group')
 const teacherRouter = require('./routes/teacher')
 const rateRouter = require('./routes/rate')
 const questionRouter = require('./routes/question')
+
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 
 

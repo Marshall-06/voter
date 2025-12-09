@@ -64,24 +64,48 @@ exports.rateTeacher = async (req, res) => {
 
 // Get teacher ratings + questions
 exports.getTeacherRatings = async (req, res) => {
-    try {
-        const { teacherId } = req.params;
+  try {
+    const { teacherId } = req.params;
 
-        const ratings = await Rating.findAll({ where: { teacherId } });
-        const questions = await Question.findAll();
+    // Get all ratings for this teacher
+    const ratings = await Rating.findAll({ where: { teacherId } });
 
-        const result = questions.map(q => ({
-            questionId: q.id,
-            questionText: q.text,
-            answers: ratings.map(r => ({
-                studentId: r.studentId,
-                score: r.answers[q.id] || null
-            }))
-        }));
-
-        res.json(result);
-
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+    if (!ratings.length) {
+      return res.status(404).json({ message: "No ratings found for this teacher" });
     }
+
+    // Collect all scores from all submissions
+    let allScores = [];
+
+    ratings.forEach(r => {
+      const answers = typeof r.answers === "string" ? JSON.parse(r.answers) : r.answers;
+
+      const scores = Object.values(answers)
+        .map(s => Number(s))
+        .filter(score => !isNaN(score));
+
+      allScores.push(...scores);
+    });
+
+    if (!allScores.length) {
+      return res.status(404).json({ message: "No valid scores found for this teacher" });
+    }
+
+    // Calculate overall average across all scores
+    const avgScore = Math.min(
+      5,
+      allScores.reduce((a, b) => a + b, 0) / allScores.length
+    );
+
+    res.json({
+      teacherId,
+      totalRatings: ratings.length,           // number of submissions
+      averageScore: Number(avgScore.toFixed(2))
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
 };
+

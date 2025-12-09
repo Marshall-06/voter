@@ -15,7 +15,8 @@ const User = sequelize.define("User", {
     },    
     teacherId: {
         type: DataTypes.INTEGER,
-        allowNull: false
+        allowNull: true,
+        defaultValue: null
     },
     name: { type: DataTypes.STRING, allowNull: false },
     email: {type: DataTypes.STRING,allowNull: false},

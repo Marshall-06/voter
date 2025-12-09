@@ -8,8 +8,16 @@ const User = sequelize.define("User", {
         primaryKey: true,
         allowNull: false
     },
+    studentId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: null
+    },    
+    teacherId: {
+        type: DataTypes.INTEGER,
+        allowNull: false
+    },
     name: { type: DataTypes.STRING, allowNull: false },
-    phone_num: { type: DataTypes.INTEGER, allowNull: false },
     email: {type: DataTypes.STRING,allowNull: false},
     password: { type: DataTypes.STRING, allowNull: false },
     role: { type: DataTypes.ENUM("admin","teacher", "student"), defaultValue: "student" }

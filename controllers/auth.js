@@ -30,7 +30,7 @@ exports.adminLogin = async (req, res) => {
 
 // ✅ User registration
 exports.register = async (req, res) => {
-  const { name, phone_num, password, email, role } = req.body;
+  const {  name, password, email, role, teacherId } = req.body;
   try {
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
@@ -43,9 +43,9 @@ exports.register = async (req, res) => {
     const newUser = await User.create({
       name,
       email,
-      phone_num,
       password: hashedPassword,
       role,
+      teacherId
     });
 
     const token = sign(
@@ -61,23 +61,105 @@ exports.register = async (req, res) => {
   }
 };
 
+exports.registerStudent = async (req, res) => {
+  const { studentId, name, password, email, role } = req.body;
+
+  try {
+    // 1. Only require studentId for students
+    if (role === "student" && !studentId) {
+      return res.status(400).json({ error: "Student ID is required for students" });
+    }
+
+    // 2. Check email already exists
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      return res
+        .status(400)
+        .json({ error: "Sizin nomeriniz bilen on hasap acylypdyr" });
+    }
+
+    // 3. Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 4. Create user (null studentId for non-students)
+    const newUser = await User.create({
+      studentId: role === "student" ? studentId : null,
+      name,
+      email,
+      password: hashedPassword,
+      role,
+    });
+
+    // 5. Generate token
+    const token = sign(
+      { id: newUser.id, role: newUser.role },
+      process.env.JWT_ACCESS_KEY,
+      { expiresIn: "24h" }
+    );
+
+    res.status(201).json({ token });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+};
+
+
 // ✅ User login
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
+  const { teacherId } = req.body;
   try {
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ where: { teacherId } });
     if (!user) {
       return res
         .status(400)
         .json({ error: "Ulanyjynyň nomeri ýa-da açar sözi nädogry" });
     }
 
-    const passwordIsValid = bcrypt.compareSync(password, user.password);
-    if (!passwordIsValid) {
+    // const passwordIsValid = bcrypt.compareSync(password, user.password);
+    // if (!passwordIsValid) {
+    //   return res
+    //     .status(400)
+    //     .json({ error: "Ulanyjynyň nomeri ýa-da açar sözi nädogry" });
+    // }
+
+    const token = sign(
+      {
+        id: user.id,
+        role: user.role,
+        username: user.username,
+        isAdmin: user.isAdmin,
+        teacherId: user.teacherId
+      },
+      process.env.JWT_ACCESS_KEY,
+      { expiresIn: "24h" }
+    );
+
+    res.json({ token });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+};
+
+// ✅ User login
+exports.loginStudent = async (req, res) => {
+  const { studentId } = req.body;
+  try {
+    const user = await User.findOne({ where: { studentId } });
+    if (!user) {
       return res
         .status(400)
         .json({ error: "Ulanyjynyň nomeri ýa-da açar sözi nädogry" });
     }
+
+    // const passwordIsValid = bcrypt.compareSync(password, user.password);
+    // if (!passwordIsValid) {
+    //   return res
+    //     .status(400)
+    //     .json({ error: "Ulanyjynyň nomeri ýa-da açar sözi nädogry" });
+    // }
 
     const token = sign(
       {

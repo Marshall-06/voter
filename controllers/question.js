@@ -29,3 +29,38 @@ exports.getAllQuestions = async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 };
+
+exports.deleteQuestion = async (req, res) => {
+    try {
+        if (req.user.role !== "admin")
+            return res.status(403).json({ message: "Admin only" });
+        const { id } = req.params;
+
+        const question = await Question.findByPk(id);
+        if (!question)
+            return res.status(404).json({ message: "Question not found" });
+        await question.destroy();
+
+        res.json({ message: "Question deleted" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+exports.updateQuestion = async (req, res) => {
+  try {
+    if (req.user.role !== "admin")
+      return res.status(403).json({ message: "Admin only" });
+    const { id } = req.params;
+    const { text } = req.body;
+
+    const question = await Question.findByPk(id);
+    if (!question)
+      return res.status(404).json({ message: "Question not found" });
+    question.text = text || question.text;
+    await question.save();
+    res.json({ message: "Question updated", question });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

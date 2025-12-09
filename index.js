@@ -10,7 +10,7 @@ const authRouter = require('./routes/auth')
 const categoryRouter = require('./routes/group')
 const teacherRouter = require('./routes/teacher')
 const rateRouter = require('./routes/rate')
-const questionRouter = require('./routes/qestion')
+const questionRouter = require('./routes/question')
 
 
 

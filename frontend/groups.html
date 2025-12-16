@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Group Management</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+<style>
+  body {
+    margin: 0;
+    font-family: "Inter", sans-serif;
+    background: linear-gradient(135deg, #0f172a, #1e293b, #0b132b);
+    color: white;
+    padding: 40px;
+  }
+  h1 { text-align: center; margin-bottom: 30px; color: #38bdf8; font-size: 32px; }
+  .container { width: 90%; max-width: 800px; margin: auto; }
+  .card { background: rgba(255,255,255,0.12); padding: 25px; border-radius: 14px; backdrop-filter: blur(10px); margin-bottom: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+  label { font-weight: 500; }
+  input { width: 100%; padding: 14px; border-radius: 8px; border: none; margin-top: 6px; margin-bottom: 15px; background: #e2e8f0; font-size: 15px; }
+  button { width: 100%; padding: 14px; background: #38bdf8; border: none; font-size: 16px; font-weight: 600; border-radius: 8px; color: #0f172a; cursor: pointer; transition: .3s; }
+  button:hover { background: #0ea5e9; transform: translateY(-3px); }
+  table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+  th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.15); }
+  th { color: #38bdf8; font-size: 17px; }
+  .btn-small { padding: 6px 10px; font-size: 14px; border-radius: 5px; margin-right: 6px; cursor: pointer; transition: .2s; }
+  .edit-btn { background: #facc15; color: black; }
+  .edit-btn:hover { background: #eab308; }
+  .delete-btn { background: #ef4444; color: white; }
+  .delete-btn:hover { background: #dc2626; }
+  #toast { position: fixed; top: 20px; right: -300px; background: #22c55e; padding: 14px 20px; border-radius: 8px; transition: .6s; color: white; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+<h1>Group Management</h1>
+
+<div class="container">
+
+  <!-- Add Group -->
+  <div class="card">
+    <h2>Add New Group</h2>
+    <label>Group Name:</label>
+    <input type="text" id="groupName" placeholder="Enter group name">
+    <button onclick="addGroup()">Add Group</button>
+  </div>
+
+  <!-- List Groups -->
+  <div class="card">
+    <h2>All Groups</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Group Name</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="groupsTable"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+const API = "http://localhost:5000/api/group"; // Backend API
+const token = localStorage.getItem("token"); // Admin token
+
+function showToast(msg, color="#22c55e") {
+  const t = document.getElementById("toast");
+  t.innerText = msg;
+  t.style.background = color;
+  t.style.right = "20px";
+  setTimeout(() => { t.style.right = "-300px"; }, 2000);
+}
+
+// Add Group
+async function addGroup() {
+  const name = document.getElementById("groupName").value.trim();
+  if(!name) return showToast("Group name cannot be empty", "#ef4444");
+
+  try {
+    const res = await fetch(`${API}/add`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ name })
+    });
+    const data = await res.json();
+    if(res.ok) {
+      showToast("Group added successfully!");
+      document.getElementById("groupName").value = "";
+      loadGroups();
+    } else {
+      showToast(data.message || "Failed to add group", "#ef4444");
+    }
+  } catch(err) {
+    console.error(err);
+    showToast("Server error", "#ef4444");
+  }
+}
+
+// Load all groups
+async function loadGroups() {
+  try {
+    const res = await fetch(API, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const groups = await res.json();
+    const table = document.getElementById("groupsTable");
+    table.innerHTML = "";
+
+    groups.forEach(g => {
+      table.innerHTML += `
+        <tr>
+          <td>${g.id}</td>
+          <td><input id="g${g.id}" type="text" value="${g.name}" style="width: 95%"></td>
+          <td>
+            <button class="btn-small edit-btn" onclick="updateGroup(${g.id})">Update</button>
+            <button class="btn-small delete-btn" onclick="deleteGroup(${g.id})">Delete</button>
+          </td>
+        </tr>
+      `;
+    });
+  } catch(err) {
+    console.error(err);
+    showToast("Failed to load groups", "#ef4444");
+  }
+}
+
+// Update group
+async function updateGroup(id) {
+  const name = document.getElementById("g"+id).value.trim();
+  if(!name) return showToast("Group name cannot be empty", "#ef4444");
+
+  try {
+    const res = await fetch(`${API}/update/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      body: JSON.stringify({ name })
+    });
+    const data = await res.json();
+    if(res.ok) showToast("Group updated!");
+    else showToast(data.message || "Update failed", "#ef4444");
+    loadGroups();
+  } catch(err) {
+    console.error(err);
+    showToast("Server error", "#ef4444");
+  }
+}
+
+// Delete group
+async function deleteGroup(id) {
+  try {
+    const res = await fetch(`${API}/delete/${id}`, {
+      method: "DELETE",
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    if(res.ok) showToast("Group deleted!", "#ef4444");
+    else showToast("Delete failed", "#ef4444");
+    loadGroups();
+  } catch(err) {
+    console.error(err);
+    showToast("Server error", "#ef4444");
+  }
+}
+
+// Load groups on page load
+loadGroups();
+</script>
+
+</body>
+</html>

@@ -8,7 +8,9 @@ router.post("/assign", authMiddleware, adminOnly, controller.assign);
 router.put("/:id", authMiddleware, adminOnly, controller.update);
 //assignment id
 router.delete("/:id", authMiddleware, adminOnly, controller.remove);
-router.get("/", authMiddleware, controller.getAll);
+router.get("/", authMiddleware, controller.getAll); // admin view all
+
+router.get("/group/:groupId", authMiddleware, controller.getById);
 
 module.exports = router;
 

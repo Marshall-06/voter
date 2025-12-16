@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "Inter", sans-serif;
+      background: linear-gradient(135deg, #0f172a, #1e293b, #0b132b);
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding-top: 40px;
+    }
+
+    .dashboard {
+      width: 90%;
+      max-width: 950px;
+      margin: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 22px;
+    }
+
+    .title {
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 36px;
+      font-weight: 700;
+      color: #38bdf8;
+      text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.12);
+      padding: 25px;
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      transition: 0.3s;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      text-align: center;
+    }
+
+    .card:hover {
+      transform: translateY(-6px);
+      background: rgba(255, 255, 255, 0.18);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .card i {
+      font-size: 45px;
+      margin-bottom: 18px;
+      color: #38bdf8;
+      text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+    }
+
+    .card h3 {
+      font-size: 20px;
+      margin-bottom: 15px;
+      color: #f1f5f9;
+    }
+
+    .card button {
+      padding: 12px 18px;
+      font-size: 16px;
+      border: none;
+      background: #38bdf8;
+      color: #0f172a;
+      font-weight: 600;
+      border-radius: 8px;
+      transition: 0.3s;
+      cursor: pointer;
+    }
+
+    .card button:hover {
+      background: #0ea5e9;
+      transform: translateY(-3px);
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <h1 class="title">Admin Dashboard</h1>
+
+    <div class="dashboard">
+
+      <div class="card" onclick="location.href='groups.html'">
+        <i class="fa-solid fa-layer-group"></i>
+        <h3>Group Management</h3>
+        <button>Manage Groups</button>
+      </div>
+
+      <div class="card" onclick="location.href='assign-teacher.html'">
+        <i class="fa-solid fa-chalkboard-user"></i>
+        <h3>Teacher Management</h3>
+        <button>Assign Teachers</button>
+      </div>
+
+      <div class="card" onclick="location.href='questions.html'">
+        <i class="fa-solid fa-circle-question"></i>
+        <h3>Questions</h3>
+        <button>Manage Questions</button>
+      </div>
+
+      <div class="card" onclick="location.href='rating-report.html'">
+        <i class="fa-solid fa-chart-line"></i>
+        <h3>Teacher Ratings</h3>
+        <button>View Reports</button>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>

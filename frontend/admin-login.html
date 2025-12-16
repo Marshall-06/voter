@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Login</title>
+  <style>
+    body { font-family: Arial; background: #f5f5f5; padding: 40px; text-align: center; }
+    .box { width: 350px; margin: auto; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 0 10px #ccc; }
+    input, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 5px; border: 1px solid #ccc; }
+    button { background: #e74c3c; color: white; cursor: pointer; }
+    button:hover { background: #c0392b; }
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <h2>Admin Login</h2>
+
+  <input id="email" type="email" placeholder="Email" required>
+  <input id="password" type="password" placeholder="Password" required>
+
+  <button onclick="loginAdmin()">Login</button>
+  <p id="msg"></p>
+</div>
+
+<script>
+async function loginAdmin() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  const res = await fetch("/api/auth/rootman", { 
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password })
+  });
+
+  const data = await res.json();
+  document.getElementById("msg").innerText = data.error || "Login successful!";
+
+  if (data.token) {
+    localStorage.setItem("token", data.token);
+    window.location = "admin-dashboard.html";
+  }
+}
+</script>
+
+</body>
+</html>

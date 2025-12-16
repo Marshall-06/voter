@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Welcome | Login Portal</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial;
+      background: linear-gradient(135deg, #2980b9, #6dd5fa, #ffffff);
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .container {
+      width: 450px;
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      box-shadow: 0 0 20px rgba(0,0,0,0.2);
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 15px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      transition: 0.3s;
+    }
+
+    .student-btn {
+      background: #3498db;
+      color: white;
+    }
+    .student-btn:hover {
+      background: #21618c;
+    }
+
+    .teacher-btn {
+      background: #27ae60;
+      color: white;
+    }
+    .teacher-btn:hover {
+      background: #1e8449;
+    }
+
+    .admin-btn {
+      background: #e74c3c;
+      color: white;
+    }
+    .admin-btn:hover {
+      background: #c0392b;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Choose Login Type</h1>
+
+  <button class="student-btn" onclick="goStudent()">Student Login</button>
+
+  <button class="teacher-btn" onclick="goTeacher()">Teacher Login</button>
+
+  <button class="admin-btn" onclick="goAdmin()">Admin Login</button>
+</div>
+
+<script>
+  function goStudent() {
+    window.location = "student-login.html";
+  }
+
+  function goTeacher() {
+    window.location = "teacher-login.html";
+  }
+
+  function goAdmin() {
+    window.location = "admin-login.html";
+  }
+</script>
+
+</body>
+</html>

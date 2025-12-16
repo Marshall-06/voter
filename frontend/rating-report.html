@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Top 5 Teachers (Fixed)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { background: radial-gradient(circle at top, #0f172a, #020617); color: #fff; font-family: Inter, system-ui, Arial; }
+  .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(10px) saturate(120%); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; }
+  .muted { color: #cbd5e1; }
+</style>
+</head>
+<body class="min-h-screen p-8">
+  <div class="max-w-6xl mx-auto">
+    <h1 class="text-3xl font-bold text-center mb-6">🏆 Top 5 Teachers — Admin Dashboard (Fixed)</h1>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- left: controls + top5 -->
+      <section class="lg:col-span-1 glass p-6">
+        <div class="mb-4">
+          <label class="block font-semibold mb-2">Filter by group</label>
+          <select id="groupSelect" class="w-full p-2 rounded text-black">
+            <option value="">All groups</option>
+          </select>
+        </div>
+
+        <div class="mb-4">
+          <label class="block font-semibold mb-2">Select teacher (inspect)</label>
+          <select id="teacherSelect" class="w-full p-2 rounded text-black">
+            <option value="">Select a teacher...</option>
+          </select>
+        </div>
+
+        <hr class="my-4 border-gray-700" />
+
+        <div>
+          <h2 class="text-lg font-semibold mb-2">Top 5 (unique)</h2>
+          <div id="topList" class="space-y-3"></div>
+          <p id="topStatus" class="muted mt-4"></p>
+        </div>
+      </section>
+
+      <!-- right: details + table -->
+      <section class="lg:col-span-2 glass p-6">
+        <div id="details" class="mb-6">
+          <h2 class="text-2xl font-bold">Teacher Details</h2>
+          <div id="detailsBody" class="mt-3 muted">Pick a teacher to view stats.</div>
+        </div>
+
+        <div>
+          <h2 class="text-2xl font-bold">All Top 5 Table</h2>
+          <div class="overflow-x-auto mt-3">
+            <table class="w-full text-left">
+              <thead class="text-sm uppercase text-gray-300">
+                <tr>
+                  <th class="p-3">Rank</th>
+                  <th class="p-3">Teacher</th>
+                  <th class="p-3">Average</th>
+                  <th class="p-3">Ratings</th>
+                </tr>
+              </thead>
+              <tbody id="topTable" class="align-top"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+<script>
+/*
+  Robust front-end for Top 5 teachers.
+  - Adjust API_URL if your backend is on a different host/port.
+  - Expects a JWT token stored in localStorage.token
+  - Uses these endpoints (with sensible fallbacks):
+      GET  /api/group
+      GET  /api/teacher               (list of teacher assignments or teacher objects)
+      GET  /api/teacher/group/:groupId
+      GET  /api/rate/:teacherId
+*/
+
+const API_URL = "http://localhost:5000/api";
+const token = localStorage.getItem("token");
+
+// simple helpers
+const $ = sel => document.querySelector(sel);
+const q = sel => document.querySelectorAll(sel);
+
+if (!token) {
+  alert("No token found. Please login first.");
+  window.location.href = "index.html";
+}
+
+const groupSelect = $("#groupSelect");
+const teacherSelect = $("#teacherSelect");
+const topList = $("#topList");
+const topTable = $("#topTable");
+const topStatus = $("#topStatus");
+const detailsBody = $("#detailsBody");
+
+async function safeFetch(url, opts = {}) {
+  opts.headers = opts.headers || {};
+  opts.headers.Authorization = `Bearer ${token}`;
+  try {
+    const res = await fetch(url, opts);
+    if (!res.ok) {
+      // Try to parse JSON error if possible
+      let msg = `${res.status} ${res.statusText}`;
+      try { const j = await res.json(); if (j && j.message) msg = j.message; } catch {}
+      throw new Error(msg);
+    }
+    const contentType = res.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      return await res.json();
+    } else {
+      // server returned HTML (likely 404 page)
+      const text = await res.text();
+      throw new Error("Unexpected non-JSON response: " + text.slice(0,120));
+    }
+  } catch (err) {
+    console.error("Fetch error", url, err);
+    throw err;
+  }
+}
+
+// Normalize teacher item from many shapes
+function normalizeTeacherItem(item) {
+  // possible shapes observed in your project:
+  // 1) { teacherId: 7, teacherName: "Alice", subject: "Math" }
+  // 2) { id: 1, teacherId: 7, subject: "Math", teacherUser: { name: "Alice" } }
+  // 3) { id: assignmentId, teacherId: 7, subject: "...", ... }
+  // 4) { id: 5, name: "Alice", teacherId: 7 }
+  // 5) { teacherUser: { id: x, name: 'Alice', teacherId: 7 }, subject: '...' }
+  const out = {};
+  // manual teacher id (preferred)
+  out.teacherId = item.teacherId ?? (item.teacherUser && item.teacherUser.teacherId) ?? null;
+  // fallback to numeric id (if teacherId is not provided)
+  if (!out.teacherId) out.teacherId = item.id ?? null;
+  // name resolution
+  out.name = item.teacherName ?? item.name ?? (item.teacherUser && (item.teacherUser.name || item.teacherUser.teacherName)) ?? "Unknown";
+  // subjects: if assignment row, use item.subject; otherwise allow item.subjects array
+  out.subjects = [];
+  if (Array.isArray(item.subjects)) out.subjects = item.subjects;
+  else if (item.subject) out.subjects = [item.subject];
+  else out.subjects = [];
+  // store raw original
+  out._raw = item;
+  return out;
+}
+
+// Given an array (possibly assignments) returns unique teachers keyed by teacherId
+function uniqueTeachersFromArray(arr) {
+  const map = new Map();
+  for (const it of arr) {
+    const t = normalizeTeacherItem(it);
+    if (!t.teacherId && !t.name) continue;
+    const key = String(t.teacherId ?? t.name);
+    if (!map.has(key)) {
+      map.set(key, { teacherId: t.teacherId, name: t.name, subjects: t.subjects });
+    } else {
+      // merge subjects
+      const existing = map.get(key);
+      for (const s of t.subjects) if (!existing.subjects.includes(s)) existing.subjects.push(s);
+    }
+  }
+  return Array.from(map.values());
+}
+
+// fetch group list
+async function loadGroups() {
+  try {
+    const groups = await safeFetch(`${API_URL}/group`);
+    // group may be [] or error
+    groupSelect.innerHTML = `<option value="">All groups</option>`;
+    groups.forEach(g => {
+      const opt = document.createElement("option");
+      opt.value = g.id ?? g.groupId ?? g.id;
+      opt.textContent = g.name ?? g.title ?? `Group ${g.id}`;
+      groupSelect.appendChild(opt);
+    });
+  } catch (err) {
+    groupSelect.innerHTML = `<option value="">(failed to load groups)</option>`;
+    console.warn("loadGroups failed:", err.message);
+  }
+}
+
+// load teacher assignments or teachers (all) and render top 5 (All groups)
+async function loadAndShowTop5(groupId = "") {
+  topStatus.textContent = "Loading teachers and ratings...";
+  topList.innerHTML = "";
+  topTable.innerHTML = "";
+  try {
+    // choose endpoint: group-specific or all
+    let teachersRaw;
+    if (groupId) {
+      // try preferred endpoint /api/teacher/group/:id
+      try {
+        teachersRaw = await safeFetch(`${API_URL}/teacher/group/${groupId}`);
+      } catch (err) {
+        // fallback: try query param /api/teacher?group=...
+        console.warn("fallback to /api/teacher?group=", err.message);
+        teachersRaw = await safeFetch(`${API_URL}/teacher?group=${groupId}`);
+      }
+    } else {
+      // try /api/teacher/all then /api/teacher
+      try {
+        teachersRaw = await safeFetch(`${API_URL}/teacher/all`);
+      } catch (err) {
+        console.warn("fallback to /api/teacher (all)", err.message);
+        teachersRaw = await safeFetch(`${API_URL}/teacher`);
+      }
+    }
+
+    // normalize into unique teachers
+    const unique = uniqueTeachersFromArray(Array.isArray(teachersRaw) ? teachersRaw : []);
+    if (!unique.length) {
+      topStatus.textContent = "No teachers found for this selection.";
+      return;
+    }
+
+    // fill teacher dropdown (filtered by group)
+    teacherSelect.innerHTML = `<option value="">Select a teacher...</option>`;
+    unique.forEach(t => {
+      const o = document.createElement("option");
+      // store teacherId (manual) when present; otherwise use name-based key
+      o.value = t.teacherId ?? t.name;
+      o.textContent = `${t.name} ${t.subjects.length ? "(" + t.subjects.join(", ") + ")" : ""}`;
+      teacherSelect.appendChild(o);
+    });
+
+    // fetch ratings for all unique teacherIds in parallel
+    const ratingPromises = unique.map(u => {
+      // if teacherId is falsy, skip and return zero stats
+      if (!u.teacherId) return Promise.resolve({ teacherId: u.teacherId, averageScore: 0, totalRatings: 0 });
+      return safeFetch(`${API_URL}/rate/${u.teacherId}`)
+        .then(r => ({ teacherId: u.teacherId, averageScore: Number(r.averageScore ?? r.avgScore ?? r.avg ?? 0), totalRatings: Number(r.totalRatings ?? r.count ?? 0) }))
+        .catch(() => ({ teacherId: u.teacherId, averageScore: 0, totalRatings: 0 }));
+    });
+
+    const ratings = await Promise.all(ratingPromises);
+
+    // attach stats back to teachers (match by teacherId)
+    const byId = new Map(); // key by teacherId or name fallback
+    unique.forEach(u => {
+      const key = String(u.teacherId ?? u.name);
+      byId.set(key, { ...u, averageScore: 0, totalRatings: 0 });
+    });
+    ratings.forEach(r => {
+      const key = String(r.teacherId ?? "");
+      if (byId.has(key)) {
+        const obj = byId.get(key);
+        obj.averageScore = isFinite(r.averageScore) ? r.averageScore : 0;
+        obj.totalRatings = isFinite(r.totalRatings) ? r.totalRatings : 0;
+      } else {
+        // sometimes teacherId missing => cannot match, skip
+      }
+    });
+
+    // convert to array and sort by averageScore desc
+    const merged = Array.from(byId.values()).sort((a,b) => (b.averageScore||0) - (a.averageScore||0));
+
+    // top 5
+    const top5 = merged.slice(0,5);
+
+    // render cards
+    topList.innerHTML = "";
+    top5.forEach((t, idx) => {
+      const div = document.createElement("div");
+      div.className = "p-3 rounded border border-white/6";
+      div.innerHTML = `<div class="flex justify-between items-center">
+        <div>
+          <div class="text-sm text-gray-300">#${idx+1}</div>
+          <div class="text-lg font-semibold">${t.name}</div>
+          <div class="text-sm muted">${(t.subjects||[]).join(", ")}</div>
+        </div>
+        <div class="text-right">
+          <div class="text-xl font-bold">${(t.averageScore||0).toFixed(2)}</div>
+          <div class="text-sm muted">${t.totalRatings||0} ratings</div>
+        </div>
+      </div>`;
+      // clicking a card selects teacher in dropdown
+      div.addEventListener("click", () => {
+        // select option in teacherSelect if exists
+        for (const opt of teacherSelect.options) {
+          if (opt.value === String(t.teacherId ?? t.name)) {
+            teacherSelect.value = opt.value;
+            teacherSelect.dispatchEvent(new Event('change'));
+            break;
+          }
+        }
+      });
+      topList.appendChild(div);
+    });
+
+    // render table
+    topTable.innerHTML = "";
+    top5.forEach((t, idx) => {
+      const tr = document.createElement("tr");
+      tr.className = "border-b border-white/6";
+      tr.innerHTML = `<td class="p-3">#${idx+1}</td>
+        <td class="p-3">${t.name}</td>
+        <td class="p-3">${(t.averageScore||0).toFixed(2)}</td>
+        <td class="p-3">${t.totalRatings||0}</td>`;
+      topTable.appendChild(tr);
+    });
+
+    topStatus.textContent = `Showing top ${top5.length} teachers (unique).`;
+  } catch (err) {
+    topStatus.textContent = "Failed to load top teachers — check console for details.";
+    console.error("loadAndShowTop5 error:", err);
+  }
+}
+
+// when teacher selected -> show details
+teacherSelect.addEventListener("change", async () => {
+  const val = teacherSelect.value;
+  if (!val) {
+    detailsBody.innerHTML = "Pick a teacher to view details.";
+    return;
+  }
+  // find teacherId numeric if present, else fallback to name
+  const teacherId = val;
+  detailsBody.innerHTML = "Loading details...";
+  try {
+    // call rate endpoint
+    const r = await safeFetch(`${API_URL}/rate/${teacherId}`);
+    // r may be { averageScore, totalRatings } or { avgScore, totalRatings } etc
+    const avg = Number(r.averageScore ?? r.avg ?? r.avgScore ?? 0).toFixed(2);
+    const total = Number(r.totalRatings ?? r.count ?? r.total ?? 0);
+    let qHtml = "";
+    // optional: if backend returns per-question structure, show it
+    if (Array.isArray(r.questions) && r.questions.length) {
+      qHtml = `<h4 class="mt-3 font-semibold">Question breakdown</h4>`;
+      qHtml += `<div class="mt-2 space-y-2">` + r.questions.map(q => {
+        const avgq = Number(q.avg ?? q.average ?? 0).toFixed(2);
+        return `<div class="p-3 rounded border border-white/6">
+          <div class="font-medium">${q.questionText ?? q.text ?? "Question"}</div>
+          <div class="text-sm muted">Avg: ${avgq}</div>
+        </div>`;
+      }).join("") + `</div>`;
+    }
+
+    detailsBody.innerHTML = `<div>
+      <div class="text-lg font-semibold">Teacher: ${teacherSelect.selectedOptions[0].text}</div>
+      <div class="mt-2">Average score: <b>${avg}</b></div>
+      <div>Total ratings: <b>${total}</b></div>
+      ${qHtml}
+    </div>`;
+  } catch (err) {
+    detailsBody.innerHTML = "Failed to load details — check console.";
+    console.error("teacher details fetch error:", err);
+  }
+});
+
+// wire group change
+groupSelect.addEventListener("change", () => {
+  const gid = groupSelect.value || "";
+  loadAndShowTop5(gid);
+});
+
+// init
+(async function init() {
+  await loadGroups();
+  await loadAndShowTop5(); // start with all groups
+})();
+</script>
+</body>
+</html>
